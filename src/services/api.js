@@ -8,7 +8,7 @@ const getBaseURL = () => {
   if (import.meta.env?.DEV) return 'http://192.168.1.173:5001';
 
   // Fallback produção: sempre HTTPS + domínio
-  return 'https://api.engajedu.com.br';
+  return 'https://engajedu.com.br/api';
 };
 
 const baseURL = getBaseURL();
