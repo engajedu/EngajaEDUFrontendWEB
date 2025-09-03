@@ -31,6 +31,16 @@ import TranscriptionLossAlert from '../components/TranscriptionLossAlert';
 import api from "../services/api";
 
 export default function VoiceQuizSelection() {
+
+    const getSavedUser = () => {
+        try {
+            const raw = localStorage.getItem('auth:user');
+            return raw ? JSON.parse(raw) : null;
+        } catch {
+            return null;
+    }
+    };
+
     const navigate = useNavigate();
     const location = useLocation();    // Dados vindos da tela anterior ou localStorage como fallback
     const { 
@@ -166,78 +176,81 @@ export default function VoiceQuizSelection() {
         });
     };
 
-    const saveQuiz = async () => {
-        const selectedCount = getSelectedQuestionsCount();
-        
-        if (selectedCount === 0) {
-            DarkSwal.fire({
-                title: "Nenhuma questão selecionada!",
-                text: "Por favor, selecione pelo menos uma questão para criar o questionário.",
-                icon: "warning"
-            });
-            return;
-        }        setIsLoading(true);
+    const saveQuiz = async (usuarioOverride) => {
+  // pega o usuário do storage (ou usa o override passado)
+        const saved = getSavedUser();
+        const usuario = saved?.usuario;
 
-        try {
-            // Preparar questões selecionadas para o backend
-            const selectedQuestionsForBackend = [];
-            
-            Object.keys(selectedQuestions).forEach(topic => {
-                Object.keys(selectedQuestions[topic]).forEach(questionIndex => {
-                    if (selectedQuestions[topic][questionIndex]) {
-                        const question = editedQuestionsData[topic][questionIndex];
-                        selectedQuestionsForBackend.push({
-                            enunciado: question[0],
-                            resposta: question[1] === "Verdadeiro" ? "V" : "F",
-                            tema: topic
-                        });
-                    }
-                });
-            });            await api.post('/cadastraQuestionario', {
-                questionario: {
-                    nome: quizName || "Questionário por Áudio",
-                    descricao: quizDescription || "Questionário gerado automaticamente a partir de áudio",
-                    questoes: selectedQuestionsForBackend
-                }
-            }, {
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(function (response) {
-                DarkSwal.fire({
-                    title: "Questionário criado com sucesso!",
-                    text: `${selectedCount} questões foram adicionadas ao questionário.`,
-                    icon: "success"
-                });
+  const selectedCount = getSelectedQuestionsCount();
 
-                // Limpar localStorage de dados temporários
-                localStorage.removeItem('generatedQuestions');
-                
-                navigate('/quizzes');
-            })
-            .catch(function (error) {
-                DarkSwal.fire({
-                    title: "Erro ao salvar!",
-                    text: "Não foi possível criar o questionário. Tente novamente.",
-                    icon: "error"
-                });
-                console.error(error);
-            });
+  if (selectedCount === 0) {
+    DarkSwal.fire({
+      title: 'Nenhuma questão selecionada!',
+      text: 'Por favor, selecione pelo menos uma questão para criar o questionário.',
+      icon: 'warning',
+    });
+    return;
+  }
 
-        } catch (error) {
-            console.error(error);
-        } finally {
-            setIsLoading(false);
-        }
-    };    // Verificação final antes de renderizar
-    if (!quizName || !quizDescription || !editedQuestionsData || Object.keys(editedQuestionsData).length === 0) {
-        return (
-            <Box sx={{ textAlign: 'center', mt: 4 }}>
-                <Typography variant="h6">Carregando questões...</Typography>
-            </Box>
-        );
+  setIsLoading(true);
+
+  try {
+    if (!usuario) {
+      throw new Error('Professor não identificado (sem usuário). Faça login novamente.');
     }
+
+    // monta as questões selecionadas para o backend
+    const selectedQuestionsForBackend = [];
+    Object.keys(selectedQuestions).forEach((topic) => {
+      Object.keys(selectedQuestions[topic]).forEach((questionIndex) => {
+        if (selectedQuestions[topic][questionIndex]) {
+          const question = editedQuestionsData[topic][questionIndex];
+          selectedQuestionsForBackend.push({
+            enunciado: question[0],
+            resposta: question[1] === 'Verdadeiro' ? 'V' : 'F',
+            tema: topic,
+          });
+        }
+      });
+    });
+
+    // payload do POST
+    const payload = {
+      questionario: {
+        nome: quizName || 'Questionário por Áudio',
+        descricao: quizDescription || 'Questionário gerado automaticamente a partir de áudio',
+        questoes: selectedQuestionsForBackend,
+      },
+    };
+    console.log(payload);
+
+    // ✅ envia o usuario como query param
+    await api.post('/cadastraQuestionario', payload, {
+      params: { usuario },
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    DarkSwal.fire({
+      title: 'Questionário criado com sucesso!',
+      text: `${selectedCount} questões foram adicionadas ao questionário.`,
+      icon: 'success',
+    });
+
+    // limpa dados temporários
+    localStorage.removeItem('generatedQuestions');
+
+    navigate('/quizzes');
+  } catch (error) {
+    console.error(error);
+    DarkSwal.fire({
+      title: 'Erro ao salvar!',
+      text: 'Não foi possível criar o questionário. Tente novamente.',
+      icon: 'error',
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
 
     return (
         <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
