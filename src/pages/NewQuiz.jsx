@@ -39,6 +39,15 @@ export default function NewQuiz() {
         }
     };
 
+    const getSavedUser = () => {
+        try {
+            const raw = localStorage.getItem('auth:user');
+            return raw ? JSON.parse(raw) : null;
+        } catch {
+            return null;
+    }
+    };
+
     const handleFileUpload = (e) => {
         const file = e.target.files[0];
         const reader = new FileReader();
@@ -76,44 +85,56 @@ export default function NewQuiz() {
 
 
     const saveQuiz = async () => {
-        const savedQuestions = quizData.map(question => {
-            return {
-                enunciado: question[0],
-                resposta: question[1],
-                tema: question[2]
-            };
-        });
-
-
-        await api.post('/cadastraQuestionario', JSON.stringify({
-            questionario: {
-                nome: quizName,
-                descricao: quizDescription,
-                questoes: savedQuestions
-            }
-        }))
-            .then(function (response) {
-                DarkSwal.fire({
-                    title: "Questionário cadastrado com sucesso!",
-                    icon: "success"
-                })
-
-                setQuizName('');
-                setQuizDescription('');
-                setQuizData(null);
-
-                navigate('/');
-            })
-            .catch(function (error) {
-                DarkSwal.fire({
-                    tile: "Houve um erro!",
-                    title: "Não foi possível cadastrar o questionário!",
-                    icon: "error"
-                })
-
-                console.error(error);
-            });
+  try {
+    // pega o usuário salvo no storage
+    const saved = getSavedUser();
+    const usuario = saved?.usuario; // <- será enviado ao backend
+    if (!usuario) {
+      return DarkSwal.fire({
+        title: 'Sessão inválida',
+        text: 'Faça login novamente.',
+        icon: 'error',
+      });
     }
+
+    // monta as questões a partir do arquivo importado
+    const savedQuestions = quizData.map(([enunciado, resposta, tema]) => ({
+      enunciado,
+      resposta,
+      tema,
+    }));
+
+    // envia o questionário normalmente, porém com ?usuario=... na query
+    await api.post(
+      '/cadastraQuestionario',
+      {
+        questionario: {
+          nome: quizName,
+          descricao: quizDescription,
+          questoes: savedQuestions,
+        },
+      },
+      {
+        params: { usuario }, // 👈 enviado na query string
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+
+    DarkSwal.fire({ title: 'Questionário cadastrado com sucesso!', icon: 'success' });
+
+    setQuizName('');
+    setQuizDescription('');
+    setQuizData(null);
+    navigate('/');
+  } catch (error) {
+    console.error(error);
+    DarkSwal.fire({
+      title: 'Não foi possível cadastrar o questionário!',
+      text: error?.response?.data?.message || error.message,
+      icon: 'error',
+    });
+  }
+};
 
 
     return (
