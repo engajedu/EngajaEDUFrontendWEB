@@ -16,6 +16,18 @@ const QuizCard = ({ quiz, onMainClick, onSecondaryClick, onRefresh }) => {
     const { setQuizCode } = useQuizClass();
     const randomImage = useMemo(() => getRandomImage('quiz'), []);
 
+    const getSavedUser = () => {
+        try {
+            const raw = localStorage.getItem('auth:user');
+            return raw ? JSON.parse(raw) : null;
+        } catch {
+            return null;
+        }
+    };
+
+    const saved = getSavedUser();
+    const usuario = saved?.usuario;
+
     const openEdit = (quiz) => {
         setQuizCode(quiz.codigo);
         navigate(`/quizzes/${quiz._id}/edit`);
@@ -33,70 +45,72 @@ const QuizCard = ({ quiz, onMainClick, onSecondaryClick, onRefresh }) => {
             confirmButtonColor: '#d33',
             reverseButtons: true
         }).then(async (result) => {
-            if(result.isConfirmed) {
-                await api.post('/deletarQuestionario', JSON.stringify({
-                    codigoQuestionario: quiz.codigo
-                }))
-                    .then(response => {
-                        DarkSwal.fire({
-                            title: "Questionário excluído com sucesso!",
-                            icon: "success"   
-                        })
+            if (result.isConfirmed) {
+                try {
+                    const { data } = await api.post(
+                        '/deletarQuestionario',
+                        { codigoQuestionario: quiz.codigo },   // BODY (JSON)
+                        { params: { usuario } }                // QUERY (?usuario=...)
+                    );
 
-                        onRefresh();
-                    })
-                    .catch(error => {
-                        DarkSwal.fire({
-                            tile: "Houve um erro!",
-                            title: "Não foi possível excluir questionário!",
-                            icon: "error" 
-                        })
-
-                        console.error(error);
+                    DarkSwal.fire({
+                        title: data?.message || "Questionário excluído com sucesso!",
+                        icon: "success"
                     });
+
+                    onRefresh();
+                } catch (err) {
+                    const msg = err?.response?.data?.message || "Não foi possível excluir questionário!";
+                    DarkSwal.fire({
+                        title: "Houve um erro!",
+                        text: msg,
+                        icon: "error"
+                    });
+                    console.error('API Error /deletarQuestionario:', err?.response?.data || err);
+                }
             }
         })
     };
 
     return (
         <Grid item xs={12} md={6} lg={4} xl={3}>
-            <Box sx={{ height: '100%' }}> 
-            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                <CardActionArea onClick={onSecondaryClick}>
-                    <CardMedia
-                        component="img"
-                        height="140"
-                        image={randomImage}
-                        alt={quiz.descricao}
-                        sx={{ objectFit: 'cover' }}
-                    />
-                    <CardContent sx={{ flexGrow: 1, overflow: 'auto' }}>
-                        <Typography gutterBottom variant="h5" component="div">
-                            {quiz.nome}
-                        </Typography>
+            <Box sx={{ height: '100%' }}>
+                <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                    <CardActionArea onClick={onSecondaryClick}>
+                        <CardMedia
+                            component="img"
+                            height="140"
+                            image={randomImage}
+                            alt={quiz.descricao}
+                            sx={{ objectFit: 'cover' }}
+                        />
+                        <CardContent sx={{ flexGrow: 1, overflow: 'auto' }}>
+                            <Typography gutterBottom variant="h5" component="div">
+                                {quiz.nome}
+                            </Typography>
 
-                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                            {quiz.descricao}
-                        </Typography>
+                            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                                {quiz.descricao}
+                            </Typography>
 
-                    </CardContent>
-                </CardActionArea>
+                        </CardContent>
+                    </CardActionArea>
 
-                <CardActions sx={{ display: 'flex', justifyContent: 'space-around' }}>
-                    <Button color="primary" onClick={onMainClick}>
-                        Iniciar
-                    </Button>
+                    <CardActions sx={{ display: 'flex', justifyContent: 'space-around' }}>
+                        <Button color="primary" onClick={onMainClick}>
+                            Iniciar
+                        </Button>
 
-                    <IconButton color="info" aria-label="Editar questionário" onClick={() => openEdit(quiz)}>
-                        <Edit />
-                    </IconButton>
+                        <IconButton color="info" aria-label="Editar questionário" onClick={() => openEdit(quiz)}>
+                            <Edit />
+                        </IconButton>
 
-                    <IconButton color="error" aria-label="Excluir questionário" onClick={handleDelete}>
-                        <Delete />
-                    </IconButton>
+                        <IconButton color="error" aria-label="Excluir questionário" onClick={handleDelete}>
+                            <Delete />
+                        </IconButton>
 
-                </CardActions>
-            </Card>
+                    </CardActions>
+                </Card>
             </Box>
         </Grid>
 
