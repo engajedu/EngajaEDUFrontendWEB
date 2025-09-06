@@ -2,13 +2,13 @@ import axios from 'axios';
 
 const getBaseURL = () => {
   // Produção (Vite lê do .env.production)
-  if (import.meta.env?.VITE_API_URL) return import.meta.env.VITE_API_URL;
+ // if (import.meta.env?.VITE_API_URL) return import.meta.env.VITE_API_URL;
 
   // Desenvolvimento local (ajuste seu IP se precisar)
-  if (import.meta.env?.DEV) return 'http://192.168.1.173:5001';
+ // if (import.meta.env?.DEV) return 'http://192.168.1.173:5001';
 
   // Fallback produção: sempre HTTPS + domínio
-  return 'https://api.engajedu.com.br';
+  return 'https://engajedu.com.br/api';
 };
 
 const baseURL = getBaseURL();
