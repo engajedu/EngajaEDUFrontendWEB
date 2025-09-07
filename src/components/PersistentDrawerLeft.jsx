@@ -186,6 +186,7 @@ export default function PersistentDrawerLeft() {
                 }).then((result) => {
                   if (result.isConfirmed) {
                     localStorage.removeItem('usuarioLogado');
+                    localStorage.removeItem('auth:user');
                     window.location.reload();
                   }
                 });
